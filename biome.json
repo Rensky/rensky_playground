@@ -1,0 +1,49 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"organizeImports": {
+		"enabled": true
+	},
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true,
+		"defaultBranch": "develop"
+	},
+	"files": {
+		"ignore": ["./.next/*", "./.vscode/*"]
+	},
+	"formatter": {
+		"ignore": ["./.next/*"],
+		"formatWithErrors": true,
+		"indentStyle": "space",
+		"indentWidth": 4,
+		"lineWidth": 120,
+		"enabled": true,
+		"lineEnding": "lf"
+	},
+	"linter": {
+		"ignore": ["./apps/web/.next/*"],
+		"rules": {
+			"recommended": true,
+			"a11y": {
+				"useKeyWithClickEvents": "off",
+				"useValidAnchor": "off",
+				"useValidAriaRole": "off"
+			},
+			"complexity": { "noUselessFragments": "off" },
+			"correctness": {
+				"useExhaustiveDependencies": "warn",
+				"useHookAtTopLevel": "error"
+			},
+			"style": { "noParameterAssign": "error" },
+			"suspicious": { "noConsoleLog": "error" }
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "single",
+			"indentStyle": "space",
+			"jsxQuoteStyle": "single"
+		}
+	}
+}
