@@ -1,3 +1,4 @@
-export default function Home() {
-    return <div>123</div>;
+import SearchArea from '@/components/Search';
+export default async function Home() {
+    return <SearchArea />;
 }
