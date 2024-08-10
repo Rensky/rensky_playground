@@ -19,10 +19,28 @@ type PokemonData = {
     };
 };
 
+interface Language {
+    name: string;
+    url: string;
+}
+
+interface Translation {
+    language: Language;
+    name: string;
+}
+
 const SearchArea = () => {
     const fetchPokemon = async (id: string) => {
-        const json = await ky.get(`https://pokeapi.co/api/v2/pokemon/${id}`).json();
-        return json;
+        const json = (await ky.get(`https://pokeapi.co/api/v2/pokemon/${id}`).json()) as PokemonData;
+        const pokemonName = await ky.get(`https://pokeapi.co/api/v2/pokemon-species/${id}`).json();
+        const { names } = pokemonName as { names: Translation[] };
+        const pokeNameZh = names.filter((name) => name.language.name === 'zh-Hant' || name.language.name === 'ja');
+        const nameCombine = `${pokeNameZh[0].name} ${pokeNameZh[1].name}`;
+        const pokeData = {
+            ...json,
+            name: nameCombine,
+        };
+        return pokeData;
     };
 
     const [inputValue, setInputValue] = useState('');
