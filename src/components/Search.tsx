@@ -3,37 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ky from 'ky';
 import { Search } from 'lucide-react';
+import type React from 'react';
 import { useState } from 'react';
 
-const SearchArea = () => {
-    // const fetchPokemon = async () => {
-    //     const json: {
-    //         name: string;
-    //         id: number;
-    //         sprites: { back_default: string; front_default: string; other: { showdown: { front_default: string } } };
-    //     } = await ky.get('https://pokeapi.co/api/v2/pokemon/200').json();
-    //     return json;
-    // };
+type PokemonData = {
+    name: string;
+    id: string;
+    sprites: {
+        back_default: string;
+        front_default: string;
+        other: {
+            showdown: { front_default: string };
+            'official-artwork': { front_default: string };
+        };
+    };
+};
 
+const SearchArea = () => {
     const fetchPokemon = async (id: string) => {
         const json = await ky.get(`https://pokeapi.co/api/v2/pokemon/${id}`).json();
         return json;
     };
 
-    // const {
-    //     name,
-    //     id,
-    //     sprites: {
-    //         back_default,
-    //         front_default,
-    //         other: {
-    //             showdown: { front_default: gifFront } = { front_default: '' },
-    //         } = {},
-    //     } = {},
-    // } = await fetchPokemon();
-
     const [inputValue, setInputValue] = useState('');
-    const [pokemonData, setPokemonData] = useState<any>({
+    const [pokemonData, setPokemonData] = useState<PokemonData>({
         name: '',
         id: '',
         sprites: {
@@ -46,16 +39,14 @@ const SearchArea = () => {
         },
     });
 
-    const handleChange = (event) => {
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(event.target.value);
     };
 
     const handleSearch = async () => {
-        const fetchPokemonData = await fetchPokemon(inputValue);
+        const fetchPokemonData = (await fetchPokemon(inputValue)) as PokemonData;
         setPokemonData(fetchPokemonData);
     };
-
-    console.log('%c⧭ pokemonData', 'color: #00e600', pokemonData);
     const {
         name,
         id,
