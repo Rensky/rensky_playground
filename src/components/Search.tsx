@@ -1,6 +1,8 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import ky from 'ky';
 import { Search } from 'lucide-react';
 import type React from 'react';
@@ -19,10 +21,23 @@ type PokemonData = {
     };
 };
 
-interface Language {
+const initialData: PokemonData = {
+    name: '',
+    id: '',
+    sprites: {
+        back_default: '',
+        front_default: '',
+        other: {
+            showdown: { front_default: '' },
+            'official-artwork': { front_default: '' },
+        },
+    },
+};
+
+type Language = {
     name: string;
     url: string;
-}
+};
 
 interface Translation {
     language: Language;
@@ -30,9 +45,22 @@ interface Translation {
 }
 
 const SearchArea = () => {
-    const fetchPokemon = async (id: string) => {
+    const [inputValue, setInputValue] = useState('');
+    const [submitValue, setSubmitValue] = useState('');
+
+    const fetchPokemonContent = async (id: string) => {
         const json = (await ky.get(`https://pokeapi.co/api/v2/pokemon/${id}`).json()) as PokemonData;
+        return json;
+    };
+
+    const fetchPokemonName = async (id: string) => {
         const pokemonName = await ky.get(`https://pokeapi.co/api/v2/pokemon-species/${id}`).json();
+        return pokemonName;
+    };
+
+    const fetchPokemon = async (id: string) => {
+        const json = await fetchPokemonContent(id);
+        const pokemonName = await fetchPokemonName(id);
         const { names } = pokemonName as { names: Translation[] };
         const pokeNameZh = names.filter((name) => name.language.name === 'zh-Hant' || name.language.name === 'ja');
         const nameCombine = `${pokeNameZh[0].name} ${pokeNameZh[1].name}`;
@@ -43,27 +71,18 @@ const SearchArea = () => {
         return pokeData;
     };
 
-    const [inputValue, setInputValue] = useState('');
-    const [pokemonData, setPokemonData] = useState<PokemonData>({
-        name: '',
-        id: '',
-        sprites: {
-            back_default: '',
-            front_default: '',
-            other: {
-                showdown: { front_default: '' },
-                'official-artwork': { front_default: '' },
-            },
-        },
+    const { data } = useQuery({
+        queryKey: ['pokemon', submitValue],
+        queryFn: () => fetchPokemon(submitValue),
+        initialData: initialData,
     });
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(event.target.value);
     };
 
-    const handleSearch = async () => {
-        const fetchPokemonData = (await fetchPokemon(inputValue)) as PokemonData;
-        setPokemonData(fetchPokemonData);
+    const handleSearch = async (e: React.MouseEvent<HTMLButtonElement>) => {
+        setSubmitValue(inputValue);
     };
     const {
         name,
@@ -76,7 +95,8 @@ const SearchArea = () => {
                 'official-artwork': { front_default: officialFront },
             },
         },
-    } = pokemonData;
+    } = data as PokemonData;
+
     return (
         <>
             <div className='relative'>
@@ -104,4 +124,14 @@ const SearchArea = () => {
     );
 };
 
-export default SearchArea;
+const SearchContainer = () => {
+    const queryClient = new QueryClient();
+    return (
+        <QueryClientProvider client={queryClient}>
+            <SearchArea />
+            <ReactQueryDevtools />
+        </QueryClientProvider>
+    );
+};
+
+export default SearchContainer;
