@@ -46,16 +46,24 @@ interface Translation {
 
 const SearchArea = () => {
     const [inputValue, setInputValue] = useState('');
-    const [submitValue, setSubmitValue] = useState('');
+    const [submitValue, setSubmitValue] = useState('1');
 
     const fetchPokemonContent = async (id: string) => {
-        const json = (await ky.get(`https://pokeapi.co/api/v2/pokemon/${id}`).json()) as PokemonData;
-        return json;
+        try {
+            const json = await ky.get(`https://pokeapi.co/api/v2/pokemon/${id}`).json();
+            return json as PokemonData;
+        } catch (error) {
+            console.error('Error:', error);
+        }
     };
 
     const fetchPokemonName = async (id: string) => {
-        const pokemonName = await ky.get(`https://pokeapi.co/api/v2/pokemon-species/${id}`).json();
-        return pokemonName;
+        try {
+            const pokemonName = await ky.get(`https://pokeapi.co/api/v2/pokemon-species/${id}`).json();
+            return pokemonName;
+        } catch (error) {
+            console.error('Error:', error);
+        }
     };
 
     const fetchPokemon = async (id: string) => {
@@ -71,10 +79,11 @@ const SearchArea = () => {
         return pokeData;
     };
 
-    const { data } = useQuery({
+    const { data, status, isPending } = useQuery({
         queryKey: ['pokemon', submitValue],
         queryFn: () => fetchPokemon(submitValue),
         initialData: initialData,
+        // retry: 3,
     });
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,44 +93,49 @@ const SearchArea = () => {
     const handleSearch = async (e: React.MouseEvent<HTMLButtonElement>) => {
         setSubmitValue(inputValue);
     };
-    const {
-        name,
-        id,
-        sprites: {
-            back_default,
-            front_default,
-            other: {
-                showdown: { front_default: gifFront },
-                'official-artwork': { front_default: officialFront },
+    if (status === 'success') {
+        const {
+            name,
+            id,
+            sprites: {
+                back_default,
+                front_default,
+                other: {
+                    showdown: { front_default: gifFront },
+                    'official-artwork': { front_default: officialFront },
+                },
             },
-        },
-    } = data as PokemonData;
-
-    return (
-        <>
-            <div className='relative'>
-                <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
-                <Input
-                    type='search'
-                    placeholder='Search products...'
-                    className='pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]'
-                    value={inputValue}
-                    onChange={handleChange}
-                />
-                <Button onClick={handleSearch}>Search</Button>
-            </div>
-            <div className='max-w-sm rounded overflow-hidden shadow-lg bg-white p-4 m-4'>
-                <div className='text-center text-2xl font-bold mb-2'>{name}</div>
-                <div className='text-center text-gray-700 text-base mb-4'>ID: {id}</div>
-                <div className='flex justify-center items-center space-x-4'>
-                    <img className='w-24 h-24' src={officialFront} alt={`${name} front`} />
-                    <img className='w-24 h-24' src={back_default} alt={`${name} back`} />
-                    <img className='w-24 h-24' src={front_default} alt={`${name} front`} />
-                    <img className='w-8 h-8' src={gifFront} alt={`${name} gif`} />
+        } = data as PokemonData;
+        return (
+            <>
+                <div className='relative'>
+                    <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+                    <Input
+                        type='search'
+                        placeholder='Search products...'
+                        className='pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]'
+                        value={inputValue}
+                        onChange={handleChange}
+                    />
+                    <Button onClick={handleSearch}>Search</Button>
                 </div>
-            </div>
-        </>
-    );
+                <div className='max-w-sm rounded overflow-hidden shadow-lg bg-white p-4 m-4'>
+                    <div className='text-center text-2xl font-bold mb-2'>{name}</div>
+                    <div className='text-center text-gray-700 text-base mb-4'>ID: {id}</div>
+                    <div className='flex justify-center items-center space-x-4'>
+                        <img className='w-24 h-24' src={officialFront} alt={`${name} front`} />
+                        <img className='w-24 h-24' src={back_default} alt={`${name} back`} />
+                        <img className='w-24 h-24' src={front_default} alt={`${name} front`} />
+                        <img className='w-8 h-8' src={gifFront} alt={`${name} gif`} />
+                    </div>
+                </div>
+            </>
+        );
+    }
+
+    if (status === 'error') {
+        return <div>Error</div>;
+    }
 };
 
 const SearchContainer = () => {
