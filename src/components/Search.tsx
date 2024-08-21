@@ -1,7 +1,7 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueries, useQuery } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import ky from 'ky';
 import { Search } from 'lucide-react';
@@ -21,7 +21,14 @@ type PokemonData = {
         };
     };
     pokeFlavorText: [];
-    moves: [];
+    moves: [
+        {
+            move: {
+                name: string;
+                url: string;
+            };
+        },
+    ];
 };
 
 const initialData: PokemonData = {
@@ -37,7 +44,7 @@ const initialData: PokemonData = {
         },
     },
     pokeFlavorText: [],
-    moves: [],
+    moves: [{ move: { name: '', url: '' } }],
 };
 
 type Language = {
@@ -82,6 +89,15 @@ const SearchArea = () => {
         }
     };
 
+    const fetchPokemonMove = async (url: string) => {
+        try {
+            const pokemonMove = await ky.get(url).json();
+            return pokemonMove;
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    };
+
     const fetchPokemon = async (id: string) => {
         const json = await fetchPokemonContent(id);
         const pokemonName = await fetchPokemonName(id);
@@ -90,11 +106,13 @@ const SearchArea = () => {
             genera: Genus[];
             flavor_text_entries: FlavorTextEntries[];
         };
+
         const pokeNameZh = names.filter((name) => name.language.name === 'zh-Hant' || name.language.name === 'ja');
         const pokeGeneraZh = genera.filter((genus) => genus.language.name === 'zh-Hant');
         const pokeFlavorText = flavor_text_entries.filter((flavor) => flavor.language.name === 'zh-Hant');
         const nameCombine = `${pokeNameZh[0].name} ${pokeNameZh[1].name}`;
         const genusData = pokeGeneraZh[0].genus;
+
         const pokeData = {
             ...json,
             name: nameCombine,
@@ -110,6 +128,34 @@ const SearchArea = () => {
         initialData: initialData,
         retry: 1,
     });
+
+    // Then get the users messages
+    const pokeMovesZh = useQueries({
+        queries: data?.moves
+            ? data?.moves.map((move) => {
+                  const id = move?.move?.url;
+                  return {
+                      queryKey: ['move', id],
+                      queryFn: () => fetchPokemonMove(id),
+                  };
+              })
+            : [],
+        combine: (results) => {
+            // 取出中文名稱
+            return {
+                data: results.map((result) => {
+                    return {
+                        id: result.data?.id,
+                        ori_name: result.data?.name,
+                        name: result.data?.names?.[2]?.name,
+                        isSuccess: result.isSuccess,
+                    };
+                }),
+            };
+        },
+    });
+
+    const { data: moveData } = pokeMovesZh;
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(event.target.value);
@@ -182,13 +228,11 @@ const SearchArea = () => {
                         <img className='w-20 h-20' src={gifFront} alt={`${name} gif`} />
                     </div>
                     <div className='flex flex-wrap justify-start items-center space-x-2 mb-4'>
-                        {moves.map((move) => {
-                            const {
-                                move: { name, url },
-                            } = move;
+                        {moveData.map((move, index) => {
+                            const { name, id, ori_name } = move;
                             return (
                                 <div
-                                    key={`${name}_${url}`}
+                                    key={`moves_${id}_${index}`}
                                     className='bg-gray-100 text-black px-3 py-1 rounded-full shadow mb-2'
                                 >
                                     {name}
@@ -218,7 +262,13 @@ const SearchArea = () => {
 };
 
 const SearchContainer = () => {
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                refetchOnWindowFocus: false, // default: true
+            },
+        },
+    });
     return (
         <QueryClientProvider client={queryClient}>
             <SearchArea />
