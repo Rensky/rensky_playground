@@ -67,6 +67,12 @@ interface FlavorTextEntries {
     language: Language;
 }
 
+interface PokemonMove {
+    id: number;
+    name: string;
+    names: { language: { name: string }; name: string }[];
+}
+
 const SearchArea = () => {
     const [inputValue, setInputValue] = useState('');
     const [submitValue, setSubmitValue] = useState('1');
@@ -145,9 +151,9 @@ const SearchArea = () => {
             return {
                 data: results.map((result) => {
                     return {
-                        id: result.data?.id,
-                        ori_name: result.data?.name,
-                        name: result.data?.names?.[2]?.name,
+                        id: (result.data as PokemonMove)?.id,
+                        ori_name: (result.data as PokemonMove)?.name,
+                        name: (result.data as PokemonMove)?.names?.[2]?.name,
                         isSuccess: result.isSuccess,
                     };
                 }),
@@ -232,7 +238,10 @@ const SearchArea = () => {
                             const { name, id, ori_name } = move;
                             return (
                                 <div
-                                    key={`moves_${id}_${index}`}
+                                    key={`moves_${id}_${ori_name}_${
+                                        // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
+                                        index
+                                    }`}
                                     className='bg-gray-100 text-black px-3 py-1 rounded-full shadow mb-2'
                                 >
                                     {name}
