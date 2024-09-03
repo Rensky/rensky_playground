@@ -7,6 +7,8 @@ import ky from 'ky';
 import { Search } from 'lucide-react';
 import type React from 'react';
 import { useState } from 'react';
+import { Moves } from './Moves';
+// import type { MovesData } from './Moves';
 
 type PokemonData = {
     name: string;
@@ -21,15 +23,17 @@ type PokemonData = {
         };
     };
     pokeFlavorText: [];
-    moves: [
-        {
-            move: {
-                name: string;
-                url: string;
-            };
-        },
-    ];
+    moves: MovesData;
 };
+
+type MovesData = [
+    {
+        move: {
+            name: string;
+            url: string;
+        };
+    },
+];
 
 const initialData: PokemonData = {
     name: '',
@@ -234,7 +238,8 @@ const SearchArea = () => {
                         <img className='w-20 h-20' src={gifFront} alt={`${name} gif`} />
                     </div>
                     <div className='flex flex-wrap justify-start items-center space-x-2 mb-4'>
-                        {moveData.map((move, index) => {
+                        <Moves movesProps={moveData} />
+                        {/* {moveData.map((move, index) => {
                             const { name, id, ori_name } = move;
                             return (
                                 <div
@@ -247,7 +252,7 @@ const SearchArea = () => {
                                     {name}
                                 </div>
                             );
-                        })}
+                        })} */}
                     </div>
                 </div>
             )}
