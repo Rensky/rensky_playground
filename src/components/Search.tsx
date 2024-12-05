@@ -1,7 +1,7 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { QueryClient, QueryClientProvider, useQueries, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import ky from 'ky';
 import { Search } from 'lucide-react';
@@ -79,7 +79,7 @@ interface PokemonMove {
 
 const SearchArea = () => {
     const [inputValue, setInputValue] = useState('');
-    const [submitValue, setSubmitValue] = useState('1');
+    const [submitValue, setSubmitValue] = useState('');
 
     const fetchPokemonContent = async (id: string) => {
         try {
@@ -122,7 +122,6 @@ const SearchArea = () => {
         const pokeFlavorText = flavor_text_entries.filter((flavor) => flavor.language.name === 'zh-Hant');
         const nameCombine = `${pokeNameZh[0].name} ${pokeNameZh[1].name}`;
         const genusData = pokeGeneraZh[0].genus;
-
         const pokeData = {
             ...json,
             name: nameCombine,
@@ -132,40 +131,40 @@ const SearchArea = () => {
         return pokeData;
     };
 
-    const { data, status, isFetching } = useQuery({
-        queryKey: ['pokemon', submitValue],
-        queryFn: () => fetchPokemon(submitValue),
-        initialData: initialData,
-        retry: 1,
-    });
-
     // Then get the users messages
-    const pokeMovesZh = useQueries({
-        queries: data?.moves
-            ? data?.moves.map((move) => {
-                  const id = move?.move?.url;
-                  return {
-                      queryKey: ['move', id],
-                      queryFn: () => fetchPokemonMove(id),
-                  };
-              })
-            : [],
-        combine: (results) => {
-            // 取出中文名稱
-            return {
-                data: results.map((result) => {
-                    return {
-                        id: (result.data as PokemonMove)?.id,
-                        ori_name: (result.data as PokemonMove)?.name,
-                        name: (result.data as PokemonMove)?.names?.[2]?.name,
-                        isSuccess: result.isSuccess,
-                    };
-                }),
-            };
+    // const pokeMovesZh = useQueries({
+    //     queries: data?.moves
+    //         ? data?.moves.map((move) => {
+    //               const id = move?.move?.url;
+    //               return {
+    //                   queryKey: ['move', id],
+    //                   queryFn: () => fetchPokemonMove(id),
+    //               };
+    //           })
+    //         : [],
+    //     combine: (results) => {
+    //         // 取出中文名稱
+    //         return {
+    //             data: results.map((result) => {
+    //                 return {
+    //                     id: (result.data as PokemonMove)?.id,
+    //                     ori_name: (result.data as PokemonMove)?.name,
+    //                     name: (result.data as PokemonMove)?.names?.[2]?.name,
+    //                     isSuccess: result.isSuccess,
+    //                 };
+    //             }),
+    //         };
+    //     },
+    // });
+
+    // const { data: moveData } = pokeMovesZh;
+
+    const mutation = useMutation({
+        mutationFn: async (id: string) => {
+            const json = await fetchPokemon(id);
+            return json;
         },
     });
-
-    const { data: moveData } = pokeMovesZh;
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(event.target.value);
@@ -173,23 +172,9 @@ const SearchArea = () => {
 
     const handleSearch = async (e: React.MouseEvent<HTMLButtonElement>) => {
         setSubmitValue(inputValue);
+        mutation.mutate(inputValue);
     };
 
-    const {
-        name,
-        id,
-        genera,
-        sprites: {
-            back_default,
-            front_default,
-            other: {
-                showdown: { front_default: gifFront },
-                'official-artwork': { front_default: officialFront },
-            },
-        },
-        pokeFlavorText,
-        moves,
-    } = data as PokemonData;
     return (
         <>
             <div className='relative'>
@@ -203,60 +188,13 @@ const SearchArea = () => {
                 />
                 <Button onClick={handleSearch}>Search</Button>
             </div>
-            {isFetching && (
+            {mutation.isSuccess && <Content {...(mutation.data as PokemonData)} />}
+            {mutation.isPending && (
                 <div className='flex justify-center items-center h-screen'>
                     <div className='animate-spin rounded-full h-32 w-32 border-t-4 border-blue-500' />
                 </div>
             )}
-            {status === 'success' && (
-                <div className='max-w-2xl mx-auto rounded-lg overflow-hidden shadow-lg bg-white p-6 m-4'>
-                    <div className='text-center text-2xl font-bold mb-2 flex items-center justify-center'>
-                        <span className='text-gray-500 mr-2'>ID: {id}</span>
-                        <span>{name}</span>
-                    </div>
-                    <div className='text-center text-blue-600 text-sm font-semibold mb-4'>{`種類: ${genera}`}</div>
-                    <div className='space-y-4'>
-                        {pokeFlavorText.map((flavor) => {
-                            const {
-                                flavor_text,
-                                version: { name },
-                            } = flavor;
-                            return (
-                                <div key={`flavor_${name}`} className='grid grid-cols-12 gap-4 items-center mb-2'>
-                                    <div className='col-span-3 bg-gray-100 text-black px-3 py-1 rounded-full shadow text-center'>
-                                        {name}
-                                    </div>
-                                    <div className='col-span-9 text-gray-700'>{flavor_text}</div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className='flex justify-center items-center space-x-4 mt-4'>
-                        <img className='w-20 h-20' src={officialFront} alt={`${name} front`} />
-                        <img className='w-20 h-20' src={back_default} alt={`${name} back`} />
-                        <img className='w-20 h-20' src={front_default} alt={`${name} front`} />
-                        <img className='w-20 h-20' src={gifFront} alt={`${name} gif`} />
-                    </div>
-                    <div className='flex flex-wrap justify-start items-center space-x-2 mb-4'>
-                        <Moves movesProps={moveData} />
-                        {/* {moveData.map((move, index) => {
-                            const { name, id, ori_name } = move;
-                            return (
-                                <div
-                                    key={`moves_${id}_${ori_name}_${
-                                        // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
-                                        index
-                                    }`}
-                                    className='bg-gray-100 text-black px-3 py-1 rounded-full shadow mb-2'
-                                >
-                                    {name}
-                                </div>
-                            );
-                        })} */}
-                    </div>
-                </div>
-            )}
-            {status === 'error' && (
+            {mutation.isError && (
                 <div className='flex flex-col items-center justify-center min-h-screen bg-yellow-100'>
                     <div className='bg-white p-8 rounded-lg shadow-lg text-center'>
                         <img
@@ -271,6 +209,74 @@ const SearchArea = () => {
                     </div>
                 </div>
             )}
+        </>
+    );
+};
+
+const Content = (apiData: PokemonData) => {
+    const {
+        name,
+        id,
+        genera,
+        sprites: {
+            back_default,
+            front_default,
+            other: {
+                showdown: { front_default: gifFront },
+                'official-artwork': { front_default: officialFront },
+            },
+        },
+        pokeFlavorText,
+        moves,
+    } = apiData as PokemonData;
+    return (
+        <>
+            <div className='max-w-2xl mx-auto rounded-lg overflow-hidden shadow-lg bg-white p-6 m-4'>
+                <div className='text-center text-2xl font-bold mb-2 flex items-center justify-center'>
+                    <span className='text-gray-500 mr-2'>ID: {id}</span>
+                    <span>{name}</span>
+                </div>
+                <div className='text-center text-blue-600 text-sm font-semibold mb-4'>{`種類: ${genera}`}</div>
+                <div className='space-y-4'>
+                    {pokeFlavorText.map((flavor) => {
+                        const {
+                            flavor_text,
+                            version: { name },
+                        } = flavor;
+                        return (
+                            <div key={`flavor_${name}`} className='grid grid-cols-12 gap-4 items-center mb-2'>
+                                <div className='col-span-3 bg-gray-100 text-black px-3 py-1 rounded-full shadow text-center'>
+                                    {name}
+                                </div>
+                                <div className='col-span-9 text-gray-700'>{flavor_text}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className='flex justify-center items-center space-x-4 mt-4'>
+                    <img className='w-20 h-20' src={officialFront} alt={`${name} front`} />
+                    <img className='w-20 h-20' src={back_default} alt={`${name} back`} />
+                    <img className='w-20 h-20' src={front_default} alt={`${name} front`} />
+                    <img className='w-20 h-20' src={gifFront} alt={`${name} gif`} />
+                </div>
+                <div className='flex flex-wrap justify-start items-center space-x-2 mb-4'>
+                    {/* <Moves movesProps={moveData} /> */}
+                    {/* {moveData.map((move, index) => {
+                                const { name, id, ori_name } = move;
+                                return (
+                                    <div
+                                        key={`moves_${id}_${ori_name}_${
+                                            // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
+                                            index
+                                        }`}
+                                        className='bg-gray-100 text-black px-3 py-1 rounded-full shadow mb-2'
+                                    >
+                                        {name}
+                                    </div>
+                                );
+                            })} */}
+                </div>
+            </div>
         </>
     );
 };
