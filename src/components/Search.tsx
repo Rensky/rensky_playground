@@ -7,49 +7,6 @@ import ky from 'ky';
 import { Search } from 'lucide-react';
 import type React from 'react';
 import { useState } from 'react';
-import { Moves } from './Moves';
-// import type { MovesData } from './Moves';
-
-type PokemonData = {
-    name: string;
-    id: string;
-    genera: string;
-    sprites: {
-        back_default: string;
-        front_default: string;
-        other: {
-            showdown: { front_default: string };
-            'official-artwork': { front_default: string };
-        };
-    };
-    pokeFlavorText: [];
-    moves: MovesData;
-};
-
-type MovesData = [
-    {
-        move: {
-            name: string;
-            url: string;
-        };
-    },
-];
-
-const initialData: PokemonData = {
-    name: '',
-    id: '',
-    genera: '',
-    sprites: {
-        back_default: '',
-        front_default: '',
-        other: {
-            showdown: { front_default: '' },
-            'official-artwork': { front_default: '' },
-        },
-    },
-    pokeFlavorText: [],
-    moves: [{ move: { name: '', url: '' } }],
-};
 
 type Language = {
     name: string;
@@ -69,13 +26,47 @@ interface Genus {
 interface FlavorTextEntries {
     flavor_text: string;
     language: Language;
+    version: {
+        name: string;
+        url: string;
+    };
 }
 
-interface PokemonMove {
-    id: number;
-    name: string;
-    names: { language: { name: string }; name: string }[];
+interface Sprites {
+    back_default: string;
+    front_default: string;
+    other: {
+        showdown: { front_default: string };
+        'official-artwork': { front_default: string };
+    };
 }
+
+interface MovesData {
+    move: {
+        name: string;
+        url: string;
+    };
+}
+
+interface MovesDetail {
+    names: Translation[];
+}
+
+interface BasePokemonData {
+    name: string;
+    id: string;
+    genera: string;
+    sprites: Sprites;
+    pokeFlavorText: FlavorTextEntries[];
+}
+
+type PokemonData = BasePokemonData & {
+    moves: MovesData[];
+};
+
+type PokemonCombineData = BasePokemonData & {
+    moves: MovesDetail[];
+};
 
 const SearchArea = () => {
     const [inputValue, setInputValue] = useState('');
@@ -131,38 +122,12 @@ const SearchArea = () => {
         return pokeData;
     };
 
-    // Then get the users messages
-    // const pokeMovesZh = useQueries({
-    //     queries: data?.moves
-    //         ? data?.moves.map((move) => {
-    //               const id = move?.move?.url;
-    //               return {
-    //                   queryKey: ['move', id],
-    //                   queryFn: () => fetchPokemonMove(id),
-    //               };
-    //           })
-    //         : [],
-    //     combine: (results) => {
-    //         // 取出中文名稱
-    //         return {
-    //             data: results.map((result) => {
-    //                 return {
-    //                     id: (result.data as PokemonMove)?.id,
-    //                     ori_name: (result.data as PokemonMove)?.name,
-    //                     name: (result.data as PokemonMove)?.names?.[2]?.name,
-    //                     isSuccess: result.isSuccess,
-    //                 };
-    //             }),
-    //         };
-    //     },
-    // });
-
-    // const { data: moveData } = pokeMovesZh;
-
     const mutation = useMutation({
         mutationFn: async (id: string) => {
             const json = await fetchPokemon(id);
-            return json;
+            const moveDataPromises = json.moves ? json.moves.map((move) => fetchPokemonMove(move.move.url)) : [];
+            const moveData = await Promise.all(moveDataPromises);
+            return { ...json, moves: moveData };
         },
     });
 
@@ -188,7 +153,7 @@ const SearchArea = () => {
                 />
                 <Button onClick={handleSearch}>Search</Button>
             </div>
-            {mutation.isSuccess && <Content {...(mutation.data as PokemonData)} />}
+            {mutation.isSuccess && <Content apiData={mutation.data as PokemonCombineData} />}
             {mutation.isPending && (
                 <div className='flex justify-center items-center h-screen'>
                     <div className='animate-spin rounded-full h-32 w-32 border-t-4 border-blue-500' />
@@ -213,7 +178,7 @@ const SearchArea = () => {
     );
 };
 
-const Content = (apiData: PokemonData) => {
+const Content = ({ apiData }: { apiData: PokemonCombineData }) => {
     const {
         name,
         id,
@@ -228,7 +193,8 @@ const Content = (apiData: PokemonData) => {
         },
         pokeFlavorText,
         moves,
-    } = apiData as PokemonData;
+    } = apiData as PokemonCombineData;
+
     return (
         <>
             <div className='max-w-2xl mx-auto rounded-lg overflow-hidden shadow-lg bg-white p-6 m-4'>
@@ -260,21 +226,20 @@ const Content = (apiData: PokemonData) => {
                     <img className='w-20 h-20' src={gifFront} alt={`${name} gif`} />
                 </div>
                 <div className='flex flex-wrap justify-start items-center space-x-2 mb-4'>
-                    {/* <Moves movesProps={moveData} /> */}
-                    {/* {moveData.map((move, index) => {
-                                const { name, id, ori_name } = move;
-                                return (
-                                    <div
-                                        key={`moves_${id}_${ori_name}_${
-                                            // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
-                                            index
-                                        }`}
-                                        className='bg-gray-100 text-black px-3 py-1 rounded-full shadow mb-2'
-                                    >
-                                        {name}
-                                    </div>
-                                );
-                            })} */}
+                    {moves.map((move, index) => {
+                        const { names } = move;
+                        return (
+                            <div
+                                key={`moves_${id}_${
+                                    // biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
+                                    index
+                                }`}
+                                className='bg-gray-100 text-black px-3 py-1 rounded-full shadow mb-2'
+                            >
+                                {names.filter((name) => name.language.name === 'zh-Hant')[0].name}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </>
